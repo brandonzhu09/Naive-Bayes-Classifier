@@ -1,6 +1,9 @@
 import re
 
 
+
+log = True
+
 class UserTweet:
     def __init__(self, tweet_id, text, label):
         self.tweet_id = tweet_id
@@ -24,6 +27,7 @@ def clean_tweet(text):
     text = re.sub(r'#\w+', ' ', text) # remove hashtags
     text = re.sub(r'@\w+', ' ', text) # remove @
     text = re.sub(r'http\S+', ' ', text) # remove links
+    text = re.sub(r"([\w])[']([\w])", r'\1\2', text)
     text = re.sub(r'[^\w\s]', ' ', text) # replacing punctation
     text = ' '.join(text.split()) # removing white space
 
@@ -67,8 +71,12 @@ file_path = 'Mental-Health-Twitter.csv'
 
 
 users = process_data(file_path)
+
+if log:
+    print('processed ' + str(len(users)) + ' users')
+
+
 for user in users:
     for tweet in user.tweets:
-        print(tweet.text)
-
-print(len(users))
+        pass
+       # print(tweet.text)
