@@ -36,6 +36,8 @@ def clean_tweet(text):
 
     return text
 
+
+#returns an array of tuples that looks like [ ("wordA", "wordB"), ("wordC", "wordD")]
 def get_bigrams(text):
     words = text.split()
     bigrams = []
@@ -44,6 +46,7 @@ def get_bigrams(text):
 
     return bigrams
 
+#returns an array of user arrays that looks this [training_data, test_data]
 def training_test_split(users):
     depressed_users = []
     normal_users = []
@@ -56,7 +59,7 @@ def training_test_split(users):
     training_data = []
     test_data = []
     # training data - 57 users
-    # test data - 18 users
+    # test data - 15 users
     training_data = depressed_users[0:42] + normal_users[0:15]
     test_data = depressed_users[42:] + normal_users[15:]
     return [training_data, test_data]
@@ -69,7 +72,7 @@ def process_data(file_path):
 
         users = []
         user_dict = {}
-
+        
         for row in reader:
             # check to avoid index out of range error
             user_id = row[4]
@@ -113,6 +116,10 @@ depressed_count = 0
 for user in users:
     if user.label == "1":
         depressed_count += 1
+
+    if log:
+        print(len(user.tweets))
+
     for tweet in user.tweets:
         words.update(tweet.text.split())
         total_words += len(tweet.text.split())
@@ -120,6 +127,8 @@ for user in users:
         total_bigrams += len(bigram_list)
         for big in bigram_list:
             bigrams[big] = bigrams[big] + 1
+
+
 if log:
     print('processed ' + str(len(users)) + ' users')
     print('processed ' + str(len(words)) + ' unique words')
