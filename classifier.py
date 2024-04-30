@@ -1,5 +1,6 @@
 import re
 from collections import defaultdict
+import csv
 
 log = True
 
@@ -18,8 +19,7 @@ class User:
 
     def add_tweet(self, tweet):
         self.tweets.append(tweet)
-
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return str(self.user_id) + " " + str(self.label)
 
 
@@ -44,36 +44,51 @@ def get_bigrams(text):
 
     return bigrams
 
+def training_test_split(users):
+    depressed_users = []
+    normal_users = []
+    for user in users:
+        if user.label == "1":
+            depressed_users.append(user)
+        else:
+            normal_users.append(user)
+
+    training_data = []
+    test_data = []
+    # training data - 57 users
+    # test data - 18 users
+    training_data = depressed_users[0:42] + normal_users[0:15]
+    test_data = depressed_users[42:] + normal_users[15:]
+    return [training_data, test_data]
 
 def process_data(file_path):
-    with open(file_path, 'r') as file:
+    with open(file_path, 'r', encoding="utf-8") as file:
         header = file.readline().strip().split(',')
+
+        reader = csv.reader(file)
 
         users = []
         user_dict = {}
 
-        for line in file:
-            row = line.strip().split(',')
-
+        for row in reader:
             # check to avoid index out of range error
-            if len(row) >= 11:
-                user_id = row[4]
-                tweet_id = row[1]
-                text = row[3]
-                label = row[10]
+            user_id = row[4]
+            tweet_id = row[1]
+            text = row[3]
+            label = row[10]
 
-                cleaned_text = clean_tweet(text)
+            cleaned_text = clean_tweet(text)
 
-                tweet = UserTweet(tweet_id, cleaned_text, label)
+            tweet = UserTweet(tweet_id, cleaned_text, label)
 
-                # Check if user exists in the dict, else create a new User object
-                if user_id not in user_dict:
-                    new_user = User(user_id, label)
-                    new_user.add_tweet(tweet)
-                    users.append(new_user)
-                    user_dict[user_id] = new_user
-                else:
-                    user_dict[user_id].add_tweet(tweet)
+            # Check if user exists in the dict, else create a new User object
+            if user_id not in user_dict:
+                new_user = User(user_id, label)
+                new_user.add_tweet(tweet)
+                users.append(new_user)
+                user_dict[user_id] = new_user
+            else:
+                user_dict[user_id].add_tweet(tweet)
 
     return users
 
@@ -82,9 +97,7 @@ file_path = 'Mental-Health-Twitter.csv'
 
 
 users = process_data(file_path)
-
-if log:
-    print('processed ' + str(len(users)) + ' users')
+training_data, test_data = training_test_split(users)
 
 
 words = set()
@@ -108,7 +121,8 @@ for user in users:
         for big in bigram_list:
             bigrams[big] = bigrams[big] + 1
 if log:
-    print('processed ' + str(len(words)) + ' unqique words')
+    print('processed ' + str(len(users)) + ' users')
+    print('processed ' + str(len(words)) + ' unique words')
     print('processed ' + str(len(bigrams)) + ' unique bigrams')
     print('processed ' + str(total_bigrams) + ' total bigrams')
     print('processed ' + str(total_words) + ' total words')
