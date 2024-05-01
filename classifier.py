@@ -160,7 +160,7 @@ def get_features(text):
 def classify_feature(user, depressed_dict, normal_dict):
     bigrams = set()
     for tweet in user.tweets:
-        bigrams.update(set(get_features(tweet.text)))
+        bigrams.update(set(get_features(tweet.text))) # maybe needs fixing, needs to be looked at
 
 
     prior_for_normal = 0 # replace
