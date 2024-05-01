@@ -27,9 +27,10 @@ def clean_tweet(text):
     text = text.lower()
 
     # clean data of unnecessary symbols
-    text = re.sub(r'#\w+', ' ', text) # remove hashtags
+    text = re.sub(r'#', ' ', text) # remove hashtags
     text = re.sub(r'@\w+', ' ', text) # remove @
     text = re.sub(r'http\S+', ' ', text) # remove links
+    text = re.sub(r'[\d]+', '', text) #remove numbers
     text = re.sub(r"([\w])[']([\w])", r'\1\2', text)
     text = re.sub(r'[^\w\s]', ' ', text) # replacing punctation
     text = ' '.join(text.split()) # removing white space
@@ -80,6 +81,8 @@ def process_data(file_path):
             text = row[3]
             label = row[10]
 
+            if "yong" in text.lower():
+                continue
             cleaned_text = clean_tweet(text)
 
             tweet = UserTweet(tweet_id, cleaned_text, label)
@@ -136,8 +139,8 @@ if log:
     print('processed ' + str(total_bigrams) + ' total bigrams')
     print('processed ' + str(total_words) + ' total words')
     for k, v in list(bigrams.items()):
-        if v <= 15:
+        if v <= 25:
             del bigrams[k]
     print('processed ' + str(len(bigrams)) + ' frequent bigrams')
     print(str(depressed_count) + " depressed users")
-    #print(bigrams)
+    print(bigrams)
