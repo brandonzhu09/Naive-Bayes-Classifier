@@ -54,7 +54,7 @@ def get_unigrams(text):
     words = text.split()
     unigrams = []
     for word in words:
-        unigrams.append((word))
+        unigrams.append((word,))
     
     return unigrams
 
@@ -77,11 +77,11 @@ def get_features(text):
         raise Exception("Need cli argument for n-gram type, choose from [unigram, bigram, trigram]")
 
 
-useless_words = ["i", "you", "and", "my", "it", "is", "that", "im", "the", "or", "of", "for", "zayn", "pillowtalk", "now", "gopaytwin", "yong", "paytforluckysun", "wearepayting", "foryong", "nowzayn", "bestmusicvideo", "iheartawards", "am", "a", "in", "your"]
 
 def is_bad_feature(ngram):
+    useless_words = ["i", "you", "and", "my", "it", "is", "that", "im", "the", "or", "of", "for", "zayn", "pillowtalk", "now", "gopaytwin", "yong", "paytforluckysun", "wearepayting", "foryong", "nowzayn", "bestmusicvideo", "iheartawards", "am", "a", "in", "your"]
     for word in ngram:
-        if word not in useless_words:
+        if not word in useless_words:
             return False
     return True
 
