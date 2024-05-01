@@ -1,6 +1,7 @@
 import re
 from collections import defaultdict
 import csv
+import math
 
 log = True
 
@@ -45,10 +46,36 @@ def get_bigrams(text):
     for i in range(1, len(words)):
         bigrams.append((words[i - 1], words[i]))
 
+
     return bigrams
+
+def get_unigrams(text):
+    words = text.split()
+    unigrams = []
+    for word in words:
+        unigrams.append((word))
+    
+    return unigrams
+
+def get_trigrams(text):
+    words = text.split()
+    trigrams = []
+    for i in range(2, len(words)):
+        trigrams.append((words[i - 2], words[i - 1], words[i]))
+
+    return trigrams
 
 def get_features(text):
     return get_bigrams(text)
+
+
+useless_words = ["i", "you", "and", "my", "it", "is", "that", "im", "the", "or", "of", "for", "zayn", "pillowtalk", "now", "gopaytwin", "yong", "paytforluckysun", "wearepayting", "nowzayn", "bestmusicvideo", "iheartawards", "am", "a", "in", "your"]
+
+def is_bad_feature(ngram):
+    for word in ngram:
+        if word not in useless_words:
+            return False
+    return True
 
 #returns an array of user arrays that looks this [training_data, test_data]
 def training_test_split(users, test_size=0.2):
@@ -135,8 +162,8 @@ def process_data(file_path):
             text = row[3]
             label = row[10]
 
-            if "yong" in text.lower():
-                continue
+            # if "yong" in text.lower():
+            #     continue
             cleaned_text = clean_tweet(text)
 
             tweet = UserTweet(tweet_id, cleaned_text, label)
@@ -157,6 +184,7 @@ def process_data(file_path):
 def naive_bayes(prior, feature_to_prob, present_features):
     product = 1
     for feature, val in feature_to_prob.items():
+       # print('feature: ' + str(feature) + ' prob: '+ str(val))
         if feature in present_features:
             product *= val
         else:
@@ -165,20 +193,110 @@ def naive_bayes(prior, feature_to_prob, present_features):
     prob = prior * product
     return prob
 
-def get_features(text):
-    return get_bigrams(text)
-def classify_feature(user, depressed_dict, normal_dict):
+def naive_bayes_log(prior, feature_to_prob, present_features):
+    sum = math.log2(prior)
+    for feature, val in feature_to_prob.items():
+        if feature in present_features:
+            sum += math.log2(val)
+        else:
+            sum += math.log2(1 - val)
+    return sum
+
+def classify_feature(user, depressed_dict, normal_dict, prior_for_depressed, prior_for_normal):
     bigrams = set()
     for tweet in user.tweets:
         bigrams.update(set(get_features(tweet.text))) # maybe needs fixing, needs to be looked at
 
 
-    prior_for_normal = 0 # replace
-    prior_for_depressed = 0 # replace
+    
+    prob_depressed = naive_bayes_log(prior_for_depressed, depressed_dict, bigrams)
+    prob_normal = naive_bayes_log(prior_for_normal, normal_dict, bigrams)
 
-    prob_depressed = naive_bayes(prior_for_depressed, depressed_dict, bigrams)
-    prob_normal = naive_bayes(prior_for_normal, normal_dict, bigrams)
+    return "1" if prob_depressed > prob_normal else "0"
 
-    return 1 if prob_depressed > prob_normal else 0
 
-    print(get_prior_prob(users))
+def classify_tweet(tweet, depressed_dict, normal_dict, prior_for_depressed, prior_for_normal):
+    bigrams = set()
+    bigrams.update(set(get_features(tweet.text))) # maybe needs fixing, needs to be looked at
+
+    prob_depressed = naive_bayes_log(prior_for_depressed, depressed_dict, bigrams)
+    prob_normal = naive_bayes_log(prior_for_normal, normal_dict, bigrams)
+
+    return "1" if prob_depressed > prob_normal else "0"
+    return
+
+
+def find_best_features( depressed_dict, normal_dict, prior_depressed, prior_normal):
+    for feature in depressed_dict.keys():
+        present_features = set()
+        present_features.add(feature)
+        prob_depressed = naive_bayes(prior_depressed, depressed_dict, present_features)
+        prob_normal = naive_bayes(prior_normal, normal_dict, present_features)
+
+
+
+        depress_prob = (prob_depressed)/(prob_depressed + prob_normal)
+
+
+        if depress_prob >= .8:
+            print(str(feature) + ' is good for depress')
+        elif depress_prob <= .3:
+            print(str(feature) + " is good for not")
+
+def get_conditional_prob_by_tweet(training_tweets, freq_bigrams):
+    depressed_prob = {}
+    normal_prob = {}
+
+    total_depressed = 0
+    total_normal = 0
+
+    for tweet in training_tweets:
+        current_bigrams = set()
+        current_bigrams.update(get_features(tweet.text))
+        for current_bigram in current_bigrams:
+            if current_bigram in freq_bigrams:
+                if tweet.label == "1":
+                    depressed_prob[current_bigram] = depressed_prob.get(current_bigram, 1) + 1
+                    normal_prob[current_bigram] = normal_prob.get(current_bigram, 1)
+                else:
+                    depressed_prob[current_bigram] = depressed_prob.get(current_bigram, 1)
+                    normal_prob[current_bigram] = normal_prob.get(current_bigram, 1) + 1
+        
+        if tweet.label == "1":
+            total_depressed += 1
+        else:
+            total_normal += 1
+
+
+    print("total depressed tweets read is " + str(total_depressed))
+    print("total normal tweets read is " + str(total_normal))
+
+    for feature in depressed_prob:
+        depressed_prob[feature] = depressed_prob[feature] / total_depressed
+        normal_prob[feature] = normal_prob[feature] / total_normal
+
+    return [depressed_prob, normal_prob]
+
+def training_tweet_split(tweets, test_size):
+    depressed_tweets = []
+    normal_tweets = []
+    for tweet in tweets:
+        if tweet.label == "1":
+            depressed_tweets.append(tweet)
+        else:
+            normal_tweets.append(tweet)
+
+    training_data = []
+    test_data = []
+    num_tweets = len(tweets)
+    training_size = 1 - test_size
+    num_training_data = int(training_size * num_tweets)
+
+    training_depressed_prop = int(0.5 * num_training_data)
+    training_normal_prop = num_training_data - training_depressed_prop
+
+    print(training_depressed_prop, training_normal_prop)
+
+    training_data = depressed_tweets[0:training_depressed_prop] + normal_tweets[0:training_normal_prop]
+    test_data = depressed_tweets[training_depressed_prop:] + normal_tweets[training_normal_prop:]
+    return [training_data, test_data]
