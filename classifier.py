@@ -141,3 +141,32 @@ if log:
     print('processed ' + str(len(bigrams)) + ' frequent bigrams')
     print(str(depressed_count) + " depressed users")
     #print(bigrams)
+
+
+# takes in float and dictionary (key: feature, val: probability of a class) and set of present features and returns class probability of a tweet
+def naive_bayes(prior, feature_to_prob, present_features):
+    product = 1
+    for feature, val in feature_to_prob.items():
+        if feature in present_features:
+            product *= val
+        else:
+            product *= 1 - val
+
+    prob = prior * product
+    return prob
+
+def get_features(text):
+    return get_bigrams(text)
+def classify_feature(user, depressed_dict, normal_dict):
+    bigrams = set()
+    for tweet in user.tweets:
+        bigrams.update(set(get_features(tweet.text)))
+
+
+    prior_for_normal = 0 # replace
+    prior_for_depressed = 0 # replace
+
+    prob_depressed = naive_bayes(prior_for_depressed, depressed_dict, bigrams)
+    prob_normal = naive_bayes(prior_for_normal, normal_dict, bigrams)
+
+    return 1 if prob_depressed > prob_normal else 0
