@@ -47,8 +47,11 @@ def get_bigrams(text):
 
     return bigrams
 
+def get_features(text):
+    return get_bigrams(text)
+
 #returns an array of user arrays that looks this [training_data, test_data]
-def training_test_split(users):
+def training_test_split(users, test_size=0.2):
     depressed_users = []
     normal_users = []
     for user in users:
@@ -59,11 +62,62 @@ def training_test_split(users):
 
     training_data = []
     test_data = []
-    # training data - 57 users
-    # test data - 15 users
-    training_data = depressed_users[0:42] + normal_users[0:15]
-    test_data = depressed_users[42:] + normal_users[15:]
+    num_users = len(users)
+    training_size = 1 - test_size
+    num_training_data = int(training_size * num_users)
+    num_test_data = num_users - num_training_data
+
+    training_depressed_prop = int(0.75 * num_training_data)
+    training_normal_prop = num_training_data - training_depressed_prop
+
+    print(training_depressed_prop, training_normal_prop)
+
+    training_data = depressed_users[0:training_depressed_prop] + normal_users[0:training_normal_prop]
+    test_data = depressed_users[training_depressed_prop:] + normal_users[training_normal_prop:]
     return [training_data, test_data]
+
+def get_prior_prob(users):
+    depressed_users = 0
+    normal_users = 0
+    for user in users:
+        if user.label == "1":
+            depressed_users += 1
+        else:
+            normal_users += 1
+    
+    return (depressed_users / len(users), normal_users / len(users))
+
+
+def get_conditional_prob(training_data, freq_bigrams):
+    depressed_prob = {}
+    normal_prob = {}
+
+    total_depressed = 0
+    total_normal = 0
+
+    for user in training_data:
+        current_bigrams = set()
+        for tweet in user.tweets:
+            current_bigrams.update(get_features(tweet.text))
+        for current_bigram in current_bigrams:
+            if current_bigram in freq_bigrams:
+                if user.label == "1":
+                    depressed_prob[current_bigram] = depressed_prob.get(current_bigram, 1) + 1
+                    normal_prob[current_bigram] = normal_prob.get(current_bigram, 1)
+                else:
+                    depressed_prob[current_bigram] = depressed_prob.get(current_bigram, 1)
+                    normal_prob[current_bigram] = normal_prob.get(current_bigram, 1) + 1
+        
+        if user.label == "1":
+            total_depressed += 1
+        else:
+            total_normal += 1
+
+    for feature in depressed_prob:
+        depressed_prob[feature] = depressed_prob[feature] / total_depressed
+        normal_prob[feature] = normal_prob[feature] / total_normal
+
+    return [depressed_prob, normal_prob]
 
 def process_data(file_path):
     with open(file_path, 'r', encoding="utf-8") as file:
@@ -120,9 +174,6 @@ for user in users:
     if user.label == "1":
         depressed_count += 1
 
-    if log:
-        print(len(user.tweets))
-
     for tweet in user.tweets:
         words.update(tweet.text.split())
         total_words += len(tweet.text.split())
@@ -130,6 +181,13 @@ for user in users:
         total_bigrams += len(bigram_list)
         for big in bigram_list:
             bigrams[big] = bigrams[big] + 1
+
+
+for k, v in list(bigrams.items()):
+    if v <= 25:
+        del bigrams[k]
+        
+get_conditional_prob(training_data, bigrams)
 
 
 if log:
@@ -143,4 +201,35 @@ if log:
             del bigrams[k]
     print('processed ' + str(len(bigrams)) + ' frequent bigrams')
     print(str(depressed_count) + " depressed users")
-    print(bigrams)
+    #print(bigrams)
+
+
+# takes in float and dictionary (key: feature, val: probability of a class) and set of present features and returns class probability of a tweet
+def naive_bayes(prior, feature_to_prob, present_features):
+    product = 1
+    for feature, val in feature_to_prob.items():
+        if feature in present_features:
+            product *= val
+        else:
+            product *= 1 - val
+
+    prob = prior * product
+    return prob
+
+def get_features(text):
+    return get_bigrams(text)
+def classify_feature(user, depressed_dict, normal_dict):
+    bigrams = set()
+    for tweet in user.tweets:
+        bigrams.update(set(get_features(tweet.text))) # maybe needs fixing, needs to be looked at
+
+
+    prior_for_normal = 0 # replace
+    prior_for_depressed = 0 # replace
+
+    prob_depressed = naive_bayes(prior_for_depressed, depressed_dict, bigrams)
+    prob_normal = naive_bayes(prior_for_normal, normal_dict, bigrams)
+
+    return 1 if prob_depressed > prob_normal else 0
+
+    print(get_prior_prob(users))
