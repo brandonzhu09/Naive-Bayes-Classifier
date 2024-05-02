@@ -88,12 +88,12 @@ def is_bad_feature(ngram):
 #returns an array of user arrays that looks this [training_data, test_data]
 def training_test_split(users, test_size=0.2):
     depressed_users = []
-    normal_users = []
+    non_depressed_users = []
     for user in users:
         if user.label == "1":
             depressed_users.append(user)
         else:
-            normal_users.append(user)
+            non_depressed_users.append(user)
 
     training_data = []
     test_data = []
@@ -103,30 +103,30 @@ def training_test_split(users, test_size=0.2):
     num_test_data = num_users - num_training_data
 
     training_depressed_prop = int(0.75 * num_training_data)
-    training_normal_prop = num_training_data - training_depressed_prop
+    training_non_depressed_prop = num_training_data - training_depressed_prop
 
-    training_data = depressed_users[0:training_depressed_prop] + normal_users[0:training_normal_prop]
-    test_data = depressed_users[training_depressed_prop:] + normal_users[training_normal_prop:]
+    training_data = depressed_users[0:training_depressed_prop] + non_depressed_users[0:training_non_depressed_prop]
+    test_data = depressed_users[training_depressed_prop:] + non_depressed_users[training_non_depressed_prop:]
     return [training_data, test_data]
 
 def get_prior_prob(users):
     depressed_users = 0
-    normal_users = 0
+    non_depressed_users = 0
     for user in users:
         if user.label == "1":
             depressed_users += 1
         else:
-            normal_users += 1
+            non_depressed_users += 1
     
-    return (depressed_users / len(users), normal_users / len(users))
+    return (depressed_users / len(users), non_depressed_users / len(users))
 
 
 def get_conditional_prob(training_data, freq_bigrams):
     depressed_prob = {}
-    normal_prob = {}
+    non_depressed_prob = {}
 
     total_depressed = 0
-    total_normal = 0
+    total_non_depressed = 0
 
     for user in training_data:
         current_bigrams = set()
@@ -136,21 +136,21 @@ def get_conditional_prob(training_data, freq_bigrams):
             if current_bigram in freq_bigrams:
                 if user.label == "1":
                     depressed_prob[current_bigram] = depressed_prob.get(current_bigram, 1) + 1
-                    normal_prob[current_bigram] = normal_prob.get(current_bigram, 1)
+                    non_depressed_prob[current_bigram] = non_depressed_prob.get(current_bigram, 1)
                 else:
                     depressed_prob[current_bigram] = depressed_prob.get(current_bigram, 1)
-                    normal_prob[current_bigram] = normal_prob.get(current_bigram, 1) + 1
+                    non_depressed_prob[current_bigram] = non_depressed_prob.get(current_bigram, 1) + 1
         
         if user.label == "1":
             total_depressed += 1
         else:
-            total_normal += 1
+            total_non_depressed += 1
 
     for feature in depressed_prob:
         depressed_prob[feature] = depressed_prob[feature] / total_depressed
-        normal_prob[feature] = normal_prob[feature] / total_normal
+        non_depressed_prob[feature] = non_depressed_prob[feature] / total_non_depressed
 
-    return [depressed_prob, normal_prob]
+    return [depressed_prob, non_depressed_prob]
 
 def process_data(file_path):
     with open(file_path, 'r', encoding="utf-8") as file:
@@ -208,7 +208,7 @@ def naive_bayes_log(prior, feature_to_prob, present_features):
             sum += math.log2(1 - val)
     return sum
 
-def classify_feature(user, depressed_dict, normal_dict, prior_for_depressed, prior_for_normal):
+def classify_feature(user, depressed_dict, non_depressed_dict, prior_for_depressed, prior_for_non_depressed):
     bigrams = set()
     for tweet in user.tweets:
         bigrams.update(set(get_features(tweet.text))) # maybe needs fixing, needs to be looked at
@@ -216,32 +216,32 @@ def classify_feature(user, depressed_dict, normal_dict, prior_for_depressed, pri
 
     
     prob_depressed = naive_bayes_log(prior_for_depressed, depressed_dict, bigrams)
-    prob_normal = naive_bayes_log(prior_for_normal, normal_dict, bigrams)
+    prob_non_depressed = naive_bayes_log(prior_for_non_depressed, non_depressed_dict, bigrams)
 
-    return "1" if prob_depressed > prob_normal else "0"
+    return "1" if prob_depressed > prob_non_depressed else "0"
 
 
-def classify_tweet(tweet, depressed_dict, normal_dict, prior_for_depressed, prior_for_normal):
+def classify_tweet(tweet, depressed_dict, non_depressed_dict, prior_for_depressed, prior_for_non_depressed):
     bigrams = set()
     bigrams.update(set(get_features(tweet.text))) # maybe needs fixing, needs to be looked at
 
     prob_depressed = naive_bayes_log(prior_for_depressed, depressed_dict, bigrams)
-    prob_normal = naive_bayes_log(prior_for_normal, normal_dict, bigrams)
+    prob_non_depressed = naive_bayes_log(prior_for_non_depressed, non_depressed_dict, bigrams)
 
-    return "1" if prob_depressed > prob_normal else "0"
+    return "1" if prob_depressed > prob_non_depressed else "0"
     return
 
 
-def find_best_features( depressed_dict, normal_dict, prior_depressed, prior_normal):
+def find_best_features( depressed_dict, non_depressed_dict, prior_depressed, prior_non_depressed):
     for feature in depressed_dict.keys():
         present_features = set()
         present_features.add(feature)
         prob_depressed = naive_bayes(prior_depressed, depressed_dict, present_features)
-        prob_normal = naive_bayes(prior_normal, normal_dict, present_features)
+        prob_non_depressed = naive_bayes(prior_non_depressed, non_depressed_dict, present_features)
 
 
 
-        depress_prob = (prob_depressed)/(prob_depressed + prob_normal)
+        depress_prob = (prob_depressed)/(prob_depressed + prob_non_depressed)
 
 
         if depress_prob >= .8:
@@ -249,44 +249,44 @@ def find_best_features( depressed_dict, normal_dict, prior_depressed, prior_norm
         elif depress_prob <= .3:
             print(str(feature) + " is good for not")
 
-def get_conditional_prob_by_tweet(training_tweets, freq_bigrams):
+def get_conditional_prob_by_tweet(training_tweets, freq_ngrams):
     depressed_prob = {}
-    normal_prob = {}
+    non_depressed_prob = {}
 
     total_depressed = 0
-    total_normal = 0
+    total_non_depressed = 0
 
     for tweet in training_tweets:
-        current_bigrams = set()
-        current_bigrams.update(get_features(tweet.text))
-        for current_bigram in current_bigrams:
-            if current_bigram in freq_bigrams:
+        current_ngrams = set()
+        current_ngrams.update(get_features(tweet.text))
+        for current_ngram in current_ngrams:
+            if current_ngram in freq_ngrams:
                 if tweet.label == "1":
-                    depressed_prob[current_bigram] = depressed_prob.get(current_bigram, 1) + 1
-                    normal_prob[current_bigram] = normal_prob.get(current_bigram, 1)
+                    depressed_prob[current_ngram] = depressed_prob.get(current_ngram, 1) + 1
+                    non_depressed_prob[current_ngram] = non_depressed_prob.get(current_ngram, 1)
                 else:
-                    depressed_prob[current_bigram] = depressed_prob.get(current_bigram, 1)
-                    normal_prob[current_bigram] = normal_prob.get(current_bigram, 1) + 1
+                    depressed_prob[current_ngram] = depressed_prob.get(current_ngram, 1)
+                    non_depressed_prob[current_ngram] = non_depressed_prob.get(current_ngram, 1) + 1
         
         if tweet.label == "1":
             total_depressed += 1
         else:
-            total_normal += 1
+            total_non_depressed += 1
 
     for feature in depressed_prob:
         depressed_prob[feature] = depressed_prob[feature] / total_depressed
-        normal_prob[feature] = normal_prob[feature] / total_normal
+        non_depressed_prob[feature] = non_depressed_prob[feature] / total_non_depressed
 
-    return [depressed_prob, normal_prob]
+    return [depressed_prob, non_depressed_prob]
 
 def training_tweet_split(tweets, test_size):
     depressed_tweets = []
-    normal_tweets = []
+    non_depressed_tweets = []
     for tweet in tweets:
         if tweet.label == "1":
             depressed_tweets.append(tweet)
         else:
-            normal_tweets.append(tweet)
+            non_depressed_tweets.append(tweet)
 
     training_data = []
     test_data = []
@@ -295,10 +295,10 @@ def training_tweet_split(tweets, test_size):
     num_training_data = int(training_size * num_tweets)
 
     training_depressed_prop = int(0.5 * num_training_data)
-    training_normal_prop = num_training_data - training_depressed_prop
+    training_non_depressed_prop = num_training_data - training_depressed_prop
 
-    training_data = depressed_tweets[0:training_depressed_prop] + normal_tweets[0:training_normal_prop]
-    test_data = depressed_tweets[training_depressed_prop:] + normal_tweets[training_normal_prop:]
+    training_data = depressed_tweets[0:training_depressed_prop] + non_depressed_tweets[0:training_non_depressed_prop]
+    test_data = depressed_tweets[training_depressed_prop:] + non_depressed_tweets[training_non_depressed_prop:]
     return [training_data, test_data]
 
 def run_classifier(users, training_data, test_data, minfreq, ngram_choice, log, print_features):
@@ -315,7 +315,7 @@ def run_classifier(users, training_data, test_data, minfreq, ngram_choice, log, 
     depressed_count = 0
 
     depressed_tweets = 0
-    normal_tweets = 0
+    non_depressed_tweets = 0
 
 
     for user in users:
@@ -323,7 +323,7 @@ def run_classifier(users, training_data, test_data, minfreq, ngram_choice, log, 
             depressed_count += 1
             depressed_tweets += len(user.tweets)
         else:
-            normal_tweets += len(user.tweets)
+            non_depressed_tweets += len(user.tweets)
         for tweet in user.tweets:
             words.update(tweet.text.split())
             total_words += len(tweet.text.split())
@@ -335,14 +335,14 @@ def run_classifier(users, training_data, test_data, minfreq, ngram_choice, log, 
     training_tweets = []
 
     depressed_tweets = 0
-    normal_tweets = 0
+    non_depressed_tweets = 0
 
     for user in training_data:
         training_tweets += user.tweets
         if user.label == "1":
             depressed_tweets += len(user.tweets)
         else:
-            normal_tweets += len(user.tweets)
+            non_depressed_tweets += len(user.tweets)
 
     test_tweets = []
 
@@ -358,16 +358,16 @@ def run_classifier(users, training_data, test_data, minfreq, ngram_choice, log, 
     if(print_features):
         print(ngrams)
             
-    #depressed_dict, normal_dict = get_conditional_prob(training_data, ngrams)
+    #depressed_dict, non_depressed_dict = get_conditional_prob(training_data, ngrams)
 
-    depressed_tweet_dict, normal_tweet_dict = get_conditional_prob_by_tweet(training_tweets, ngrams)
-
-
+    depressed_tweet_dict, non_depressed_tweet_dict = get_conditional_prob_by_tweet(training_tweets, ngrams)
 
 
 
 
-    #prior_for_tweets = (depressed_tweets/(depressed_tweets + normal_tweets))
+
+
+    #prior_for_tweets = (depressed_tweets/(depressed_tweets + non_depressed_tweets))
 
     prior_for_tweets = get_prior_prob(training_data)[0]
     correct = 0
@@ -375,15 +375,15 @@ def run_classifier(users, training_data, test_data, minfreq, ngram_choice, log, 
     false_positives = 0
 
     for user in test_data:
-        if classify_feature(user, depressed_tweet_dict, normal_tweet_dict, 0.5, 0.5) == user.label:
+        if classify_feature(user, depressed_tweet_dict, non_depressed_tweet_dict, 0.5, 0.5) == user.label:
             correct += 1
             if user.label == "1":
                 true_positives += 1
-        if classify_feature(user, depressed_tweet_dict, normal_tweet_dict, 0.5, 0.5) == "1":
+        if classify_feature(user, depressed_tweet_dict, non_depressed_tweet_dict, 0.5, 0.5) == "1":
             if user.label != "1":
                 false_positives += 1
         elif log:
-            classification = classify_feature(user, depressed_tweet_dict, normal_tweet_dict, 0.5, 0.5)
+            classification = classify_feature(user, depressed_tweet_dict, non_depressed_tweet_dict, 0.5, 0.5)
             print('user id ' + str(user.user_id) + ' was classified as ' + str(classification) + ' but was actually ' + str(user.label))
     print('---------- ngram: ' + ngram_select + ' minfreq: ' + str(minfreq) + '--------------------')
     print('Test Data Accuracy: ' + str(correct) + ' users correct out of ' + str(len(test_data)))
@@ -394,15 +394,15 @@ def run_classifier(users, training_data, test_data, minfreq, ngram_choice, log, 
     false_positives = 0
 
     for user in training_data:
-        if classify_feature(user, depressed_tweet_dict, normal_tweet_dict, 0.5, 0.5) == user.label:
+        if classify_feature(user, depressed_tweet_dict, non_depressed_tweet_dict, 0.5, 0.5) == user.label:
             correct += 1
             if user.label == "1":
                 true_positives += 1
-        if classify_feature(user, depressed_tweet_dict, normal_tweet_dict, 0.5, 0.5) == "1":
+        if classify_feature(user, depressed_tweet_dict, non_depressed_tweet_dict, 0.5, 0.5) == "1":
             if user.label != "1":
                 false_positives += 1
         elif log:
-            classification = classify_feature(user, depressed_tweet_dict, normal_tweet_dict, 0.5, 0.5)
+            classification = classify_feature(user, depressed_tweet_dict, non_depressed_tweet_dict, 0.5, 0.5)
             print('user id ' + str(user.user_id) + ' was classified as ' + str(classification) + ' but was actually ' + str(user.label))
 
     print('Training Data Accuracy: ' + str(correct) + ' users correct out of ' + str(len(training_data)))
@@ -410,7 +410,7 @@ def run_classifier(users, training_data, test_data, minfreq, ngram_choice, log, 
     print('--------------------------------------------------------------------------\n')
     if log:
         print(str(depressed_tweets) + ' total depressed tweets in training set')
-        print(str(normal_tweets) + ' total normal tweets in training set')
+        print(str(non_depressed_tweets) + ' total non_depressed tweets in training set')
         print('processed ' + str(len(ngrams)) + ' unique ngrams')
         print('processed ' + str(total_ngrams) + ' total ngrams')
         print('processed ' + str(total_words) + ' total words')
