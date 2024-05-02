@@ -371,26 +371,42 @@ def run_classifier(users, training_data, test_data, minfreq, ngram_choice, log, 
 
     prior_for_tweets = get_prior_prob(training_data)[0]
     correct = 0
+    true_positives = 0
+    false_positives = 0
 
     for user in test_data:
         if classify_feature(user, depressed_tweet_dict, normal_tweet_dict, 0.5, 0.5) == user.label:
             correct += 1
+            if user.label == "1":
+                true_positives += 1
+        if classify_feature(user, depressed_tweet_dict, normal_tweet_dict, 0.5, 0.5) == "1":
+            if user.label != "1":
+                false_positives += 1
         elif log:
-            classification = classify_feature(user, depressed_tweet_dict, normal_tweet_dict, prior_for_tweets, 1 - prior_for_tweets)
+            classification = classify_feature(user, depressed_tweet_dict, normal_tweet_dict, 0.5, 0.5)
             print('user id ' + str(user.user_id) + ' was classified as ' + str(classification) + ' but was actually ' + str(user.label))
     print('---------- ngram: ' + ngram_select + ' minfreq: ' + str(minfreq) + '--------------------')
-    print('got ' + str(correct) + ' users correct out of ' + str(len(test_data)))
+    print('Test Data Accuracy: ' + str(correct) + ' users correct out of ' + str(len(test_data)))
+    print('Test Data Precision: ' + str(true_positives) + ' users correct out of ' + str(true_positives + false_positives))
 
     correct = 0
+    true_positives = 0
+    false_positives = 0
 
     for user in training_data:
-        if classify_feature(user, depressed_tweet_dict, normal_tweet_dict, prior_for_tweets, 1 - prior_for_tweets) == user.label:
+        if classify_feature(user, depressed_tweet_dict, normal_tweet_dict, 0.5, 0.5) == user.label:
             correct += 1
+            if user.label == "1":
+                true_positives += 1
+        if classify_feature(user, depressed_tweet_dict, normal_tweet_dict, 0.5, 0.5) == "1":
+            if user.label != "1":
+                false_positives += 1
         elif log:
-            classification = classify_feature(user, depressed_tweet_dict, normal_tweet_dict, prior_for_tweets, 1 - prior_for_tweets)
+            classification = classify_feature(user, depressed_tweet_dict, normal_tweet_dict, 0.5, 0.5)
             print('user id ' + str(user.user_id) + ' was classified as ' + str(classification) + ' but was actually ' + str(user.label))
 
-    print('got ' + str(correct) + ' users correct out of ' + str(len(training_data)))
+    print('Training Data Accuracy: ' + str(correct) + ' users correct out of ' + str(len(training_data)))
+    print('Training Data Precision: ' + str(true_positives) + ' users correct out of ' + str(true_positives + false_positives))
     print('--------------------------------------------------------------------------\n')
     if log:
         print(str(depressed_tweets) + ' total depressed tweets in training set')
