@@ -125,8 +125,12 @@ def get_conditional_prob(training_data, freq_bigrams):
     depressed_prob = {}
     non_depressed_prob = {}
 
-    total_depressed = 0
-    total_non_depressed = 0
+    total_depressed = 1
+    total_non_depressed = 1
+
+    for ngram in freq_bigrams:
+        depressed_prob[ngram] = 1
+        non_depressed_prob[ngram] = 1
 
     for user in training_data:
         current_bigrams = set()
@@ -135,11 +139,9 @@ def get_conditional_prob(training_data, freq_bigrams):
         for current_bigram in current_bigrams:
             if current_bigram in freq_bigrams:
                 if user.label == "1":
-                    depressed_prob[current_bigram] = depressed_prob.get(current_bigram, 1) + 1
-                    non_depressed_prob[current_bigram] = non_depressed_prob.get(current_bigram, 1)
+                    depressed_prob[current_bigram] = depressed_prob.get(current_bigram) + 1
                 else:
-                    depressed_prob[current_bigram] = depressed_prob.get(current_bigram, 1)
-                    non_depressed_prob[current_bigram] = non_depressed_prob.get(current_bigram, 1) + 1
+                    non_depressed_prob[current_bigram] = non_depressed_prob.get(current_bigram) + 1
         
         if user.label == "1":
             total_depressed += 1
@@ -205,7 +207,10 @@ def naive_bayes_log(prior, feature_to_prob, present_features):
         if feature in present_features:
             sum += math.log2(val)
         else:
-            sum += math.log2(1 - val)
+            if(val == 1):
+                sum -= math.inf
+            else:
+                sum += math.log2(1 - val)
     return sum
 
 def classify_feature(user, depressed_dict, non_depressed_dict, prior_for_depressed, prior_for_non_depressed):
@@ -358,9 +363,9 @@ def run_classifier(users, training_data, test_data, minfreq, ngram_choice, log, 
     if(print_features):
         print(ngrams)
             
-    #depressed_dict, non_depressed_dict = get_conditional_prob(training_data, ngrams)
+    depressed_tweet_dict, non_depressed_tweet_dict = get_conditional_prob(training_data, ngrams)
 
-    depressed_tweet_dict, non_depressed_tweet_dict = get_conditional_prob_by_tweet(training_tweets, ngrams)
+    # depressed_tweet_dict, non_depressed_tweet_dict = get_conditional_prob_by_tweet(training_tweets, ngrams)
 
 
 
